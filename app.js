@@ -33,6 +33,8 @@ app.get('/', routes.index);
 
 require('./modules/toilet/routes.js')(app);
 
-app.listen(29378, function(){
+var port = process.env.PORT || 3000;
+
+app.listen(port, function(){
   console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
 });
