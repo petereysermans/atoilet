@@ -49,7 +49,8 @@ ToiletRetriever.prototype.retrieve = function()
 	var number_of_public_toilets = public_toilets_data.length;
 	var public_toilets = new Array();
 	var nearest_toilets = new Array();
-
+	
+	console.log('loop public toilets');
 	for(var i = 0; i < number_of_public_toilets; i++)
 	//for(var i = 0; i < 2; i++)
 	{
