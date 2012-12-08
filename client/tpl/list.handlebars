@@ -1,0 +1,23 @@
+<div id="start">
+  <p>{{lat}}</p>
+  <p>{{long}}</p>
+
+  {{#if toilets}}
+    <ul>
+      {{#list toilets}}
+      <li>
+        {{lat}} {{long}} {{distance}}
+        <br />
+        <a href="toilet/{{id}}" role="nav">view</a>
+      </li>
+      {{/list}}
+    </ul>
+  {{else}}
+    <p>Bezig met inladen van alle toiletten in je buurt.</p>
+  {{/if}}
+        <a href="toilet/0" role="nav">view</a>
+
+  <a href="map" role="nav">Bekijk op de kaart</a>
+  <br />
+  <a href="#" class='reload'>Herlaad de lijst</a>
+</div>
