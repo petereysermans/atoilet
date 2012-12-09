@@ -39,7 +39,7 @@ ToiletRetriever.prototype.getDistance = function(start, end, decimals) {
 };
 
 
-ToiletRetriever.prototype.retrieve = function()
+ToiletRetriever.prototype.retrieve = function(callback)
 {
 	var currentLocation = {
 							lat: 51.2213422,
@@ -55,7 +55,7 @@ ToiletRetriever.prototype.retrieve = function()
 	{
 		var current = public_toilets_data[i];
 
-		public_toilets[i] = { lat: current.lat,
+		public_toilets[i] = { id: parseInt(Math.random() * 999), lat: current.lat,
 							  long: current.long,
 							  description: current.omschrijving,
 							  owner: current.eigenaar,
@@ -70,7 +70,8 @@ ToiletRetriever.prototype.retrieve = function()
 
 	public_toilets.sort(function(a, b) { return a.distance - b.distance });
 
-	this.emit('done', public_toilets.slice(0, 10));
+	callback(public_toilets.slice(0, 10));
+	// this.emit('done', public_toilets.slice(0, 10));
 };
 
 module.exports = new ToiletRetriever();

@@ -2,11 +2,11 @@
 (function() {
   "use strict";
 
-  var About, AboutView, App, GenericView, HomeView, ListView, MapView, Toilet, ToiletView, Toilets, api_url, app, position, protect_links, root_url, toilets;
+  var About, AboutView, App, GenericView, HomeView, ListView, MapView, Toilet, ToiletList, ToiletView, api_url, app, position, protect_links, root_url, toilets;
 
   root_url = '/';
 
-  api_url = 'http://guarded-falls-7310.herokuapp.com/';
+  api_url = root_url + 'api/';
 
   position = null;
 
@@ -33,35 +33,23 @@
     });
   };
 
-  Toilets = Backbone.Collection.extend({
+  ToiletList = Backbone.Collection.extend({
     model: Toilet,
     url: '',
-    set_url: function() {
-      return this.url = api_url + 'nearest.json?lat=' + position.coords.latitude + '&long=' + position.coords.longitude;
+    parse: function(resp) {
+      console.log(resp);
+      return resp;
     },
-    all: function(callback) {
-      var _this = this;
-      return $.ajax({
-        type: "GET",
-        url: this.url,
-        dataType: "jsonp",
-        success: function(data) {
-          return console.log(data);
-        },
-        error: function(xhr, textStatus, err) {
-          var data;
-          return data = xhr.responseText;
-        }
-      });
+    set_url: function() {
+      return this.url = api_url + 'nearest.json';
     }
   });
 
   Toilet = Backbone.Model.extend({
     defaults: {
-      id: 0,
+      id: null,
       lat: 0,
       long: 0,
-      distance: 0,
       description: '',
       owner: '',
       address: {
@@ -69,7 +57,8 @@
         number: '',
         postal: '',
         city: ''
-      }
+      },
+      distance: 0
     }
   });
 
@@ -123,16 +112,19 @@
     },
     reload_data: function() {
       var _this = this;
-      this.collection = new Toilets;
+      this.collection = new ToiletList;
       this.collection.set_url();
       return this.collection.fetch({
-        dataType: 'jsonp',
         success: function(collection, response, options) {
-          console.log(collection);
-          console.log(_this.collection);
           toilets = _this.collection;
           _this.model.data.toilets = _this.collection;
+          console.log('test');
           return _this.render();
+        },
+        error: function(collection, xhr, options) {
+          console.log(collection);
+          console.log(xhr);
+          return console.log(options);
         }
       });
     },
@@ -305,7 +297,7 @@
     current_view: null,
     initialize: function() {},
     routes: {
-      "": "index",
+      "index.html": "index",
       "map": "map",
       "list": "list",
       "toilet/:id": "toilet",
@@ -319,8 +311,10 @@
     },
     position_required: function() {
       if (!position) {
-        return app.navigate('', true);
+        app.navigate('', true);
+        return false;
       }
+      return true;
     },
     index: function() {
       this.before();
@@ -328,13 +322,15 @@
     },
     list: function() {
       this.before();
-      this.position_required();
-      return this.current_view = new ListView;
+      if (this.position_required()) {
+        return this.current_view = new ListView;
+      }
     },
     map: function() {
       this.before();
-      this.position_required();
-      return this.current_view = new MapView;
+      if (this.position_required()) {
+        return this.current_view = new MapView;
+      }
     },
     toilet: function(toilet_id) {
       this.before();

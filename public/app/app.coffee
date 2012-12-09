@@ -2,7 +2,7 @@
 "use strict"
 
 root_url = '/'
-api_url = 'http://guarded-falls-7310.herokuapp.com/'
+api_url = root_url + 'api/'
 
 position = null
 toilets = null
@@ -54,30 +54,40 @@ Backbone.View.prototype.wireup_navs = ->
 
 ###################################################
 
-Toilets = Backbone.Collection.extend
+ToiletList = Backbone.Collection.extend
   model: Toilet
   url: ''
 
-  set_url: () ->
-    @url = api_url + 'nearest.json?lat=' + position.coords.latitude + '&long=' + position.coords.longitude
+  parse: (resp)  ->
+    console.log resp
 
-  all: (callback) ->
-    $.ajax
-      type: "GET"
-      # url: 'http://api.geonames.org/citiesJSON?north=44.1&south=-9.9&east=-22.4&west=55.2&lang=de&username=demo'
-      url: @url
-      dataType: "jsonp"
-      success: (data) =>
-        console.log data
-      error: (xhr, textStatus, err) ->
-        data = xhr.responseText
+    return resp
+
+  set_url: () ->
+    @url = api_url + 'nearest.json' #?lat=' + position.coords.latitude + '&long=' + position.coords.longitude
+
+  # all: (callback) ->
+  #   $.ajax
+  #     type: "GET"
+  #     url: @url
+  #     # dataType: "jsonp"
+  #     complete: (xhr, data) =>
+  #       console.log 'complete'
+  #       console.log data
+  #     success: (data) =>
+  #       console.log 'success'
+  #       console.log data
+  #     error: (xhr, textStatus, err) ->
+  #       console.log 'error'
+  #       console.log xhr
+  #       data = xhr.responseText
   
 Toilet = Backbone.Model.extend
   defaults:
-    id: 0
+    id: null
+
     lat: 0
     long: 0
-    distance: 0
 
     description: ''
     owner: ''
@@ -87,6 +97,8 @@ Toilet = Backbone.Model.extend
       postal: '',
       city: ''
     }
+
+    distance: 0
 
   # url: () ->
   #   base = root_url + '?lat=' + position.coords.latitude + '&long=' + position.coords.longitude
@@ -147,21 +159,23 @@ ListView = Backbone.View.extend
     'click .reload': 'reload_data'
 
   reload_data: ->
-    @collection = new Toilets
+    @collection = new ToiletList
     @collection.set_url()
     # @collection.all()
-    @collection.fetch {
-      dataType : 'jsonp',
+    @collection.fetch({
       success: (collection, response, options) =>
-        console.log collection
-        console.log @collection
-
         toilets = @collection
 
         @model.data.toilets = @collection
 
+        console.log 'test'
+
         @render()
-    }
+      error: (collection, xhr, options) =>
+        console.log collection
+        console.log xhr
+        console.log options
+    })
  
   render: ->
     @$el.html @template(@model.data)
@@ -338,7 +352,7 @@ App = Backbone.Router.extend
   initialize: ->
 
   routes:
-    "": "index"
+    "index.html": "index"
     "map": "map"
     "list": "list"
     "toilet/:id": "toilet"
@@ -352,6 +366,10 @@ App = Backbone.Router.extend
     unless position
       app.navigate '', true
 
+      return false
+
+    true
+
   index: ->
     @before()
 
@@ -359,15 +377,15 @@ App = Backbone.Router.extend
 
   list: ->
     @before()
-    @position_required()
 
-    @current_view = new ListView
+    if @position_required()
+      @current_view = new ListView
 
   map: ->
     @before()
-    @position_required()
-
-    @current_view = new MapView
+    
+    if @position_required()
+      @current_view = new MapView
 
   toilet: (toilet_id) ->
     @before()
