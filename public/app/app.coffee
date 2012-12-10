@@ -1,11 +1,11 @@
 # /*global console,Backbone,Handlebars,io*/
 "use strict"
 
-root_url = '/'
-api_url = root_url + 'api/'
+window.root_url = '/'
+window.api_url = window.root_url + 'api/'
 
-position = null
-toilets = null
+window.position = null
+window.toilets = null
 
 ###################################################
 
@@ -30,59 +30,31 @@ Backbone.View.prototype.wireup_navs = ->
 
       false
 
-# class BaseView extends Backbone.View
-#   constructor: (options) ->
-#     @bindings = []
-# 
-#     super options
-# 
-#   bind_to: (model, event, callback) ->
-#     model.bind event, callback, @
-# 
-#     @bindings.push {model: model, event: event, callback: callback}
-# 
-#   unbind_all: ->
-#     _.each @bindings, (binding) ->
-#       binding.model.unbind binding.event, binding.callback
-# 
-#     @bindings = []
-# 
-#   close: () ->
-#     @unbind_all()
-#     @unbind()
-#     @remove()
+class BaseView extends Backbone.View
+  constructor: (options) ->
+    @bindings = []
+
+    super options
+
+  bind_to: (model, event, callback) ->
+    model.bind event, callback, @
+
+    @bindings.push {model: model, event: event, callback: callback}
+
+  unbind_all: ->
+    _.each @bindings, (binding) ->
+      binding.model.unbind binding.event, binding.callback
+
+    @bindings = []
+
+  close: () ->
+    @unbind_all()
+    @unbind()
+    @remove()
 
 ###################################################
-
-ToiletList = Backbone.Collection.extend
-  model: Toilet
-  url: ''
-
-  parse: (resp)  ->
-    console.log resp
-
-    return resp
-
-  set_url: () ->
-    @url = api_url + 'nearest.json' #?lat=' + position.coords.latitude + '&long=' + position.coords.longitude
-
-  # all: (callback) ->
-  #   $.ajax
-  #     type: "GET"
-  #     url: @url
-  #     # dataType: "jsonp"
-  #     complete: (xhr, data) =>
-  #       console.log 'complete'
-  #       console.log data
-  #     success: (data) =>
-  #       console.log 'success'
-  #       console.log data
-  #     error: (xhr, textStatus, err) ->
-  #       console.log 'error'
-  #       console.log xhr
-  #       data = xhr.responseText
   
-Toilet = Backbone.Model.extend
+class Toilet extends Backbone.Model
   defaults:
     id: null
 
@@ -101,14 +73,26 @@ Toilet = Backbone.Model.extend
     distance: 0
 
   # url: () ->
-  #   base = root_url + '?lat=' + position.coords.latitude + '&long=' + position.coords.longitude
+  #   base = window.root_url + '?lat=' + position.coords.latitude + '&long=' + position.coords.longitude
   #   
   #   return base if @isNew()
   #   return base + '/' + this.id
 
+class ToiletList extends Backbone.Collection
+  model: Toilet
+
+  url: ->
+    return_url = window.api_url + 'nearest.json'
+
+    if window.position
+      return_url += '?lat=' + position.coords.latitude + '&long=' + position.coords.longitude
+
+    return_url
+      
+
 ###################################################
 
-HomeView = Backbone.View.extend
+class HomeView extends Backbone.View
   el: $('#main')
   model: null
 
@@ -126,9 +110,17 @@ HomeView = Backbone.View.extend
   detect: ->
     if navigator.geolocation
       navigator.geolocation.getCurrentPosition (pos) =>
-        position = pos
+        window.position = pos
 
         @position_found()
+      , (err) =>
+        if err.code == 1
+          alert "Error: Wij kregen geen toegnag tot uw exacte locatie!"
+        else if err.code == 2
+          alert "Error: Uw exacte locatie is niet beschikbaar!"
+      , {timeout: 5000}
+    else
+      alert 'Uw toestel heeft geen GPS / geolocatie mogelijkheden'
   
   render: ->
     @$el.html @template(@model.data)
@@ -137,7 +129,7 @@ HomeView = Backbone.View.extend
 
 ###################################################
 
-ListView = Backbone.View.extend
+class ListView extends BaseView
   el: $('#main')
   model: null
 
@@ -146,45 +138,57 @@ ListView = Backbone.View.extend
 
     @model = {
       data: {
-        lat: position.coords.latitude,
-        long: position.coords.longitude
-        toilets: toilets
+        lat: window.position.coords.latitude,
+        long: window.position.coords.longitude
       }
     }
 
+    unless window.toilets
+      @collection = new ToiletList
+      @bind_to @collection, 'reset', @render
+      @collection.fetch()
+    else
+      @collection = window.toilets
+
     @render()
-    @reload_data()
 
   events:
     'click .reload': 'reload_data'
 
-  reload_data: ->
-    @collection = new ToiletList
-    @collection.set_url()
-    # @collection.all()
-    @collection.fetch({
-      success: (collection, response, options) =>
-        toilets = @collection
+  reload_data: (e) ->
+    e.preventDefault()
 
-        @model.data.toilets = @collection
+    @collection.fetch()
 
-        console.log 'test'
+    false
 
-        @render()
-      error: (collection, xhr, options) =>
-        console.log collection
-        console.log xhr
-        console.log options
-    })
+  #   @collection = new ToiletList
+  #   @collection.fetch {
+  #     success: (collection, response, options) =>
+  #       toilets = @collection
+  #       console.log collection
+  #       console.log @collection
+
+  #       @model.data.toilets = @collection.toJSON()
+
+  #       @render()
+  #     error: (collection, xhr, options) =>
+  #       console.log 'error'
+  #       console.log xhr
+  #       console.log options
+  #   }
  
   render: ->
+    @model.data.toilets = @collection.toJSON()
+    window.toilets = @collection
+
     @$el.html @template(@model.data)
     @.wireup_navs()
     @
 
 ###################################################
 
-MapView = Backbone.View.extend
+class MapView extends BaseView
   el: $('#main')
   model: null
   map: null
@@ -195,18 +199,20 @@ MapView = Backbone.View.extend
 
     @model = {
       data: {
-        lat: position.coords.latitude,
-        long: position.coords.longitude
-        toilets: toilets
+        lat: window.position.coords.latitude,
+        long: window.position.coords.longitude
+        toilets: if window.toilets then window.toilets.toJSON() else null
       }
     }
 
+    unless window.toilets
+      @collection = new ToiletList
+      @bind_to @collection, 'reset', @render
+      @collection.fetch()
+    else
+      @collection = window.toilets
+
     @render()
-
-    @map_init()
-    @map_plot()
-
-    @reload_data()
 
   map_init: ->
     @map = new google.maps.Map(
@@ -214,8 +220,8 @@ MapView = Backbone.View.extend
       {
         zoom: 13,
         center: new google.maps.LatLng(
-          position.coords.latitude,
-          position.coords.longitude
+          window.position.coords.latitude,
+          window.position.coords.longitude
         ),
         mapTypeId: google.maps.MapTypeId.ROADMAP
       }
@@ -229,72 +235,100 @@ MapView = Backbone.View.extend
   map_plot: ->
     @map_clear_markers()
 
-    if toilets
+    if @collection.length > 0
       @markers = []
 
-      for toilet in toilets
-        @markers.push new google.maps.Marker({
-          position: new google.maps.LatLng(
-            toilet.lat,
-            toilet.long
-          ),
-          map: map,
-          icon: 'assets/img/toilet.png'
+      @collection.each (toilet) =>
+        map_position = new google.maps.LatLng(
+          parseFloat(toilet.get('lat')),
+          parseFloat(toilet.get('long'))
+        )
+
+        marker = new google.maps.Marker({
+          position: map_position
+          map: @map,
+          icon: '/assets/img/toilet.png'
         })
 
-  reload_data: ->
-    @collection = new Toilets
-    @collection.set_url()
-    @collection.fetch { dataType : 'jsonp', success: () =>
-      toilets = @collection
+        @markers.push marker
 
-      @model.data.toilets = @collection
+  events:
+    'click .reload': 'reload_data'
 
-      @render()
-      @map_plot()
-    }
+  reload_data: (e) ->
+    e.preventDefault()
+
+    @collection.fetch()
+
+    false
+    # @collection = new ToiletList
+    # @collection.fetch {
+    #   success: () =>
+    #     window.toilets = @collection
+
+    #     @model.data.toilets = @collection.toJSON()
+
+    #     @render()
+    #     @map_plot()
+    # }
 
   render: ->
+    @model.data.toilets = @collection.toJSON()
+    window.toilets = @collection
+
     @$el.html @template(@model.data)
     @.wireup_navs()
+
+    @map_init()
+    @map_plot()
+
     @
 
 ###################################################
 
-ToiletView = Backbone.View.extend
+class ToiletView extends BaseView
   el: $('#main')
 
   initialize: ->
     @template = Handlebars.getTemplate('toilet')
 
-    if toilets
-      @show_model()
+    unless window.toilets
+      @collection = new ToiletList
+      @bind_to @collection, 'reset', @show_model
+      @collection.fetch()
     else
-      toilets = new Toilets
-      toilets.set_url()
-      toilets.fetch { dataType : 'jsonp', success: () =>
-        @show_model()
-      }
+      @collection = window.toilets
+
+      @show_model()
   
   show_model: ->
-    @model = toilets.where({id: @options.toilet_id})
-    
+    @model = @collection.get(@options.toilet_id)
+
+    window.toilets = @collection
+
     if @model
       @render()
     else
       app.navigate '', true
 
   render: ->
-    @$el.html @template(@model.toJSON().data)
+    @$el.html @template(@model.toJSON())
     @.wireup_navs()
     @
 
+  back_to_list: (e) ->
+    e.preventDefault()
+
+    window.history.back()
+
+    return false
+
   events:
-    'click .back': window.history.back
+    'click .back': 'back_to_list'
 
 ###################################################
 
-GenericView = Backbone.View.extend
+class GenericView extends BaseView
   el: $('#main')
 
   initialize: ->
@@ -308,18 +342,12 @@ GenericView = Backbone.View.extend
 
 ###################################################
 
-About = Backbone.Model.extend
-  defaults:
-    data: {}
-
-# Start view
-AboutView = Backbone.View.extend
+class AboutView extends BaseView
   el: $('#main')
 
   os: null
 
   initialize: ->
-    @model = new About
     @template = Handlebars.getTemplate("about")
 
     @os = @detect navigator.userAgent
@@ -344,7 +372,7 @@ AboutView = Backbone.View.extend
 
 ###################################################
 
-App = Backbone.Router.extend
+class App extends Backbone.Router
   el: $('#main')
   states: null
   current_view: null
@@ -352,7 +380,7 @@ App = Backbone.Router.extend
   initialize: ->
 
   routes:
-    "index.html": "index"
+    "": "index"
     "map": "map"
     "list": "list"
     "toilet/:id": "toilet"
@@ -414,6 +442,6 @@ protect_links = ->
 app = new App()
 app.navigate()
 
-Backbone.history.start pushState: true, root: root_url
+Backbone.history.start pushState: true, root: window.root_url
 
 protect_links()

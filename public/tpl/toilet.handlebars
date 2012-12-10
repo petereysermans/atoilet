@@ -1,8 +1,9 @@
 <div id="start">
-  <h2></h2>
+  <h2>{{description}}</h2>
   <ul>
+  	<li>Eigenaar: {{owner}}</li>
   	<li>Adres: {{#with address}} {{street}} {{number}} {{/with}}</li>
-  	<li>Afstand: {{distance}}</li>
+  	<li>Afstand: {{distance}}km</li>
   </ul>
 
   <a href="#" class='back'>Naar overzicht</a>

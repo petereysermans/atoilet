@@ -14,15 +14,14 @@ templates['index'] = template(function (Handlebars,depth0,helpers,partials,data)
   return "<div id=\"start\">\n  <a href=\"about\">About us</a>\n</div>\n";});
 templates['list'] = template(function (Handlebars,depth0,helpers,partials,data) {
   helpers = helpers || Handlebars.helpers;
-  var buffer = "", stack1, foundHelper, functionType="function", escapeExpression=this.escapeExpression, self=this, helperMissing=helpers.helperMissing;
+  var buffer = "", stack1, foundHelper, functionType="function", escapeExpression=this.escapeExpression, self=this;
 
 function program1(depth0,data) {
   
-  var buffer = "", stack1, foundHelper;
+  var buffer = "", stack1;
   buffer += "\n    <ul>\n      ";
   stack1 = depth0.toilets;
-  foundHelper = helpers.list;
-  stack1 = foundHelper ? foundHelper.call(depth0, stack1, {hash:{},inverse:self.noop,fn:self.program(2, program2, data)}) : helperMissing.call(depth0, "list", stack1, {hash:{},inverse:self.noop,fn:self.program(2, program2, data)});
+  stack1 = helpers.each.call(depth0, stack1, {hash:{},inverse:self.noop,fn:self.program(2, program2, data)});
   if(stack1 || stack1 === 0) { buffer += stack1; }
   buffer += "\n    </ul>\n  ";
   return buffer;}
@@ -30,18 +29,14 @@ function program2(depth0,data) {
   
   var buffer = "", stack1, foundHelper;
   buffer += "\n      <li>\n        ";
-  foundHelper = helpers.lat;
+  foundHelper = helpers.description;
   if (foundHelper) { stack1 = foundHelper.call(depth0, {hash:{}}); }
-  else { stack1 = depth0.lat; stack1 = typeof stack1 === functionType ? stack1() : stack1; }
-  buffer += escapeExpression(stack1) + " ";
-  foundHelper = helpers['long'];
-  if (foundHelper) { stack1 = foundHelper.call(depth0, {hash:{}}); }
-  else { stack1 = depth0['long']; stack1 = typeof stack1 === functionType ? stack1() : stack1; }
-  buffer += escapeExpression(stack1) + " ";
+  else { stack1 = depth0.description; stack1 = typeof stack1 === functionType ? stack1() : stack1; }
+  buffer += escapeExpression(stack1) + "\n        op ";
   foundHelper = helpers.distance;
   if (foundHelper) { stack1 = foundHelper.call(depth0, {hash:{}}); }
   else { stack1 = depth0.distance; stack1 = typeof stack1 === functionType ? stack1() : stack1; }
-  buffer += escapeExpression(stack1) + "\n        <br />\n        <a href=\"toilet/";
+  buffer += escapeExpression(stack1) + "km\n        <br />\n        <a href=\"toilet/";
   foundHelper = helpers.id;
   if (foundHelper) { stack1 = foundHelper.call(depth0, {hash:{}}); }
   else { stack1 = depth0.id; stack1 = typeof stack1 === functionType ? stack1() : stack1; }
@@ -65,7 +60,7 @@ function program4(depth0,data) {
   stack1 = depth0.toilets;
   stack1 = helpers['if'].call(depth0, stack1, {hash:{},inverse:self.program(4, program4, data),fn:self.program(1, program1, data)});
   if(stack1 || stack1 === 0) { buffer += stack1; }
-  buffer += "\n        <a href=\"toilet/0\" role=\"nav\">view</a>\n\n  <a href=\"map\" role=\"nav\">Bekijk op de kaart</a>\n  <br />\n  <a href=\"#\" class='reload'>Herlaad de lijst</a>\n</div>\n";
+  buffer += "\n\n  <a href=\"map\" role=\"nav\">Bekijk op de kaart</a>\n  <br />\n  <a href=\"#\" class='reload'>Herlaad de lijst</a>\n</div>\n";
   return buffer;});
 templates['map'] = template(function (Handlebars,depth0,helpers,partials,data) {
   helpers = helpers || Handlebars.helpers;
@@ -100,7 +95,15 @@ function program1(depth0,data) {
   buffer += escapeExpression(stack1) + " ";
   return buffer;}
 
-  buffer += "<div id=\"start\">\n  <h2></h2>\n  <ul>\n  	<li>Adres: ";
+  buffer += "<div id=\"start\">\n  <h2>";
+  foundHelper = helpers.description;
+  if (foundHelper) { stack1 = foundHelper.call(depth0, {hash:{}}); }
+  else { stack1 = depth0.description; stack1 = typeof stack1 === functionType ? stack1() : stack1; }
+  buffer += escapeExpression(stack1) + "</h2>\n  <ul>\n  	<li>Eigenaar: ";
+  foundHelper = helpers.owner;
+  if (foundHelper) { stack1 = foundHelper.call(depth0, {hash:{}}); }
+  else { stack1 = depth0.owner; stack1 = typeof stack1 === functionType ? stack1() : stack1; }
+  buffer += escapeExpression(stack1) + "</li>\n  	<li>Adres: ";
   stack1 = depth0.address;
   stack1 = helpers['with'].call(depth0, stack1, {hash:{},inverse:self.noop,fn:self.program(1, program1, data)});
   if(stack1 || stack1 === 0) { buffer += stack1; }
@@ -108,6 +111,6 @@ function program1(depth0,data) {
   foundHelper = helpers.distance;
   if (foundHelper) { stack1 = foundHelper.call(depth0, {hash:{}}); }
   else { stack1 = depth0.distance; stack1 = typeof stack1 === functionType ? stack1() : stack1; }
-  buffer += escapeExpression(stack1) + "</li>\n  </ul>\n\n  <a href=\"#\" class='back'>Naar overzicht</a>\n</div>\n";
+  buffer += escapeExpression(stack1) + "km</li>\n  </ul>\n\n  <a href=\"#\" class='back'>Naar overzicht</a>\n</div>\n";
   return buffer;});
 })();

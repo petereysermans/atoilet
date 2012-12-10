@@ -56,7 +56,7 @@ ToiletRetriever.prototype.retrieve = function(callback)
 	{
 		var current = public_toilets_data[i];
 
-		public_toilets[i] = { id: parseInt(Math.random() * 999), lat: current.lat,
+		public_toilets[i] = { id: i, lat: current.lat,
 							  long: current.long,
 							  description: current.omschrijving,
 							  owner: current.eigenaar,

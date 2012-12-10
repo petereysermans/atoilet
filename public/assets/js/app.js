@@ -2,15 +2,17 @@
 (function() {
   "use strict";
 
-  var About, AboutView, App, GenericView, HomeView, ListView, MapView, Toilet, ToiletList, ToiletView, api_url, app, position, protect_links, root_url, toilets;
+  var AboutView, App, BaseView, GenericView, HomeView, ListView, MapView, Toilet, ToiletList, ToiletView, app, protect_links,
+    __hasProp = {}.hasOwnProperty,
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
-  root_url = '/';
+  window.root_url = '/';
 
-  api_url = root_url + 'api/';
+  window.api_url = window.root_url + 'api/';
 
-  position = null;
+  window.position = null;
 
-  toilets = null;
+  window.toilets = null;
 
   Backbone.View.prototype.remove = function() {
     if (this.beforeClose) {
@@ -33,20 +35,50 @@
     });
   };
 
-  ToiletList = Backbone.Collection.extend({
-    model: Toilet,
-    url: '',
-    parse: function(resp) {
-      console.log(resp);
-      return resp;
-    },
-    set_url: function() {
-      return this.url = api_url + 'nearest.json';
-    }
-  });
+  BaseView = (function(_super) {
 
-  Toilet = Backbone.Model.extend({
-    defaults: {
+    __extends(BaseView, _super);
+
+    function BaseView(options) {
+      this.bindings = [];
+      BaseView.__super__.constructor.call(this, options);
+    }
+
+    BaseView.prototype.bind_to = function(model, event, callback) {
+      model.bind(event, callback, this);
+      return this.bindings.push({
+        model: model,
+        event: event,
+        callback: callback
+      });
+    };
+
+    BaseView.prototype.unbind_all = function() {
+      _.each(this.bindings, function(binding) {
+        return binding.model.unbind(binding.event, binding.callback);
+      });
+      return this.bindings = [];
+    };
+
+    BaseView.prototype.close = function() {
+      this.unbind_all();
+      this.unbind();
+      return this.remove();
+    };
+
+    return BaseView;
+
+  })(Backbone.View);
+
+  Toilet = (function(_super) {
+
+    __extends(Toilet, _super);
+
+    function Toilet() {
+      return Toilet.__super__.constructor.apply(this, arguments);
+    }
+
+    Toilet.prototype.defaults = {
       id: null,
       lat: 0,
       long: 0,
@@ -59,109 +91,186 @@
         city: ''
       },
       distance: 0
-    }
-  });
+    };
 
-  HomeView = Backbone.View.extend({
-    el: $('#main'),
-    model: null,
-    initialize: function() {
+    return Toilet;
+
+  })(Backbone.Model);
+
+  ToiletList = (function(_super) {
+
+    __extends(ToiletList, _super);
+
+    function ToiletList() {
+      return ToiletList.__super__.constructor.apply(this, arguments);
+    }
+
+    ToiletList.prototype.model = Toilet;
+
+    ToiletList.prototype.url = function() {
+      var return_url;
+      return_url = window.api_url + 'nearest.json';
+      if (window.position) {
+        return_url += '?lat=' + position.coords.latitude + '&long=' + position.coords.longitude;
+      }
+      return return_url;
+    };
+
+    return ToiletList;
+
+  })(Backbone.Collection);
+
+  HomeView = (function(_super) {
+
+    __extends(HomeView, _super);
+
+    function HomeView() {
+      return HomeView.__super__.constructor.apply(this, arguments);
+    }
+
+    HomeView.prototype.el = $('#main');
+
+    HomeView.prototype.model = null;
+
+    HomeView.prototype.initialize = function() {
       this.template = Handlebars.getTemplate("index");
       this.detect();
       this.model = {
         data: {}
       };
       return this.render();
-    },
-    position_found: function() {
+    };
+
+    HomeView.prototype.position_found = function() {
       return app.navigate("list", true);
-    },
-    detect: function() {
+    };
+
+    HomeView.prototype.detect = function() {
       var _this = this;
       if (navigator.geolocation) {
         return navigator.geolocation.getCurrentPosition(function(pos) {
-          position = pos;
+          window.position = pos;
           return _this.position_found();
+        }, function(err) {
+          if (err.code === 1) {
+            return alert("Error: Wij kregen geen toegnag tot uw exacte locatie!");
+          } else if (err.code === 2) {
+            return alert("Error: Uw exacte locatie is niet beschikbaar!");
+          }
+        }, {
+          timeout: 5000
         });
+      } else {
+        return alert('Uw toestel heeft geen GPS / geolocatie mogelijkheden');
       }
-    },
-    render: function() {
+    };
+
+    HomeView.prototype.render = function() {
       this.$el.html(this.template(this.model.data));
       this.wireup_navs();
       return this;
-    }
-  });
+    };
 
-  ListView = Backbone.View.extend({
-    el: $('#main'),
-    model: null,
-    initialize: function() {
+    return HomeView;
+
+  })(Backbone.View);
+
+  ListView = (function(_super) {
+
+    __extends(ListView, _super);
+
+    function ListView() {
+      return ListView.__super__.constructor.apply(this, arguments);
+    }
+
+    ListView.prototype.el = $('#main');
+
+    ListView.prototype.model = null;
+
+    ListView.prototype.initialize = function() {
       this.template = Handlebars.getTemplate("list");
       this.model = {
         data: {
-          lat: position.coords.latitude,
-          long: position.coords.longitude,
-          toilets: toilets
+          lat: window.position.coords.latitude,
+          long: window.position.coords.longitude
         }
       };
-      this.render();
-      return this.reload_data();
-    },
-    events: {
+      if (!window.toilets) {
+        this.collection = new ToiletList;
+        this.bind_to(this.collection, 'reset', this.render);
+        this.collection.fetch();
+      } else {
+        this.collection = window.toilets;
+      }
+      return this.render();
+    };
+
+    ListView.prototype.events = {
       'click .reload': 'reload_data'
-    },
-    reload_data: function() {
-      var _this = this;
-      this.collection = new ToiletList;
-      this.collection.set_url();
-      return this.collection.fetch({
-        success: function(collection, response, options) {
-          toilets = _this.collection;
-          _this.model.data.toilets = _this.collection;
-          console.log('test');
-          return _this.render();
-        },
-        error: function(collection, xhr, options) {
-          console.log(collection);
-          console.log(xhr);
-          return console.log(options);
-        }
-      });
-    },
-    render: function() {
+    };
+
+    ListView.prototype.reload_data = function(e) {
+      e.preventDefault();
+      this.collection.fetch();
+      return false;
+    };
+
+    ListView.prototype.render = function() {
+      this.model.data.toilets = this.collection.toJSON();
+      window.toilets = this.collection;
       this.$el.html(this.template(this.model.data));
       this.wireup_navs();
       return this;
-    }
-  });
+    };
 
-  MapView = Backbone.View.extend({
-    el: $('#main'),
-    model: null,
-    map: null,
-    markers: null,
-    initialize: function() {
+    return ListView;
+
+  })(BaseView);
+
+  MapView = (function(_super) {
+
+    __extends(MapView, _super);
+
+    function MapView() {
+      return MapView.__super__.constructor.apply(this, arguments);
+    }
+
+    MapView.prototype.el = $('#main');
+
+    MapView.prototype.model = null;
+
+    MapView.prototype.map = null;
+
+    MapView.prototype.markers = null;
+
+    MapView.prototype.initialize = function() {
       this.template = Handlebars.getTemplate("map");
       this.model = {
         data: {
-          lat: position.coords.latitude,
-          long: position.coords.longitude,
-          toilets: toilets
+          lat: window.position.coords.latitude,
+          long: window.position.coords.longitude,
+          toilets: window.toilets ? window.toilets.toJSON() : null
         }
       };
-      this.render();
-      this.map_init();
-      this.map_plot();
-      return this.reload_data();
-    },
-    map_init: function() {
+      if (!window.toilets) {
+        this.collection = new ToiletList;
+        this.bind_to(this.collection, 'reset', this.render);
+        this.collection.fetch();
+      } else {
+        this.collection = window.toilets;
+      }
+      return this.render();
+    };
+
+    MapView.prototype.map_init = function() {
       return this.map = new google.maps.Map(document.getElementById('map_canvas'), {
         zoom: 13,
-        center: new google.maps.LatLng(position.coords.latitude, position.coords.longitude),
+        center: new google.maps.LatLng(window.position.coords.latitude, window.position.coords.longitude),
         mapTypeId: google.maps.MapTypeId.ROADMAP
       });
-    },
-    map_clear_markers: function() {
+    };
+
+    MapView.prototype.map_clear_markers = function() {
       var marker, _i, _len, _ref, _results;
       if (this.markers) {
         _ref = this.markers;
@@ -172,183 +281,243 @@
         }
         return _results;
       }
-    },
-    map_plot: function() {
-      var toilet, _i, _len, _results;
-      this.map_clear_markers();
-      if (toilets) {
-        this.markers = [];
-        _results = [];
-        for (_i = 0, _len = toilets.length; _i < _len; _i++) {
-          toilet = toilets[_i];
-          _results.push(this.markers.push(new google.maps.Marker({
-            position: new google.maps.LatLng(toilet.lat, toilet.long),
-            map: map,
-            icon: 'assets/img/toilet.png'
-          })));
-        }
-        return _results;
-      }
-    },
-    reload_data: function() {
-      var _this = this;
-      this.collection = new Toilets;
-      this.collection.set_url();
-      return this.collection.fetch({
-        dataType: 'jsonp',
-        success: function() {
-          toilets = _this.collection;
-          _this.model.data.toilets = _this.collection;
-          _this.render();
-          return _this.map_plot();
-        }
-      });
-    },
-    render: function() {
-      this.$el.html(this.template(this.model.data));
-      this.wireup_navs();
-      return this;
-    }
-  });
+    };
 
-  ToiletView = Backbone.View.extend({
-    el: $('#main'),
-    initialize: function() {
+    MapView.prototype.map_plot = function() {
       var _this = this;
-      this.template = Handlebars.getTemplate('toilet');
-      if (toilets) {
-        return this.show_model();
-      } else {
-        toilets = new Toilets;
-        toilets.set_url();
-        return toilets.fetch({
-          dataType: 'jsonp',
-          success: function() {
-            return _this.show_model();
-          }
+      this.map_clear_markers();
+      if (this.collection.length > 0) {
+        this.markers = [];
+        return this.collection.each(function(toilet) {
+          var map_position, marker;
+          map_position = new google.maps.LatLng(parseFloat(toilet.get('lat')), parseFloat(toilet.get('long')));
+          marker = new google.maps.Marker({
+            position: map_position,
+            map: _this.map,
+            icon: '/assets/img/toilet.png'
+          });
+          return _this.markers.push(marker);
         });
       }
-    },
-    show_model: function() {
-      this.model = toilets.where({
-        id: this.options.toilet_id
-      });
+    };
+
+    MapView.prototype.events = {
+      'click .reload': 'reload_data'
+    };
+
+    MapView.prototype.reload_data = function(e) {
+      e.preventDefault();
+      this.collection.fetch();
+      return false;
+    };
+
+    MapView.prototype.render = function() {
+      this.model.data.toilets = this.collection.toJSON();
+      window.toilets = this.collection;
+      this.$el.html(this.template(this.model.data));
+      this.wireup_navs();
+      this.map_init();
+      this.map_plot();
+      return this;
+    };
+
+    return MapView;
+
+  })(BaseView);
+
+  ToiletView = (function(_super) {
+
+    __extends(ToiletView, _super);
+
+    function ToiletView() {
+      return ToiletView.__super__.constructor.apply(this, arguments);
+    }
+
+    ToiletView.prototype.el = $('#main');
+
+    ToiletView.prototype.initialize = function() {
+      this.template = Handlebars.getTemplate('toilet');
+      if (!window.toilets) {
+        this.collection = new ToiletList;
+        this.bind_to(this.collection, 'reset', this.show_model);
+        return this.collection.fetch();
+      } else {
+        this.collection = window.toilets;
+        return this.show_model();
+      }
+    };
+
+    ToiletView.prototype.show_model = function() {
+      this.model = this.collection.get(this.options.toilet_id);
+      window.toilets = this.collection;
       if (this.model) {
         return this.render();
       } else {
         return app.navigate('', true);
       }
-    },
-    render: function() {
-      this.$el.html(this.template(this.model.toJSON().data));
+    };
+
+    ToiletView.prototype.render = function() {
+      this.$el.html(this.template(this.model.toJSON()));
       this.wireup_navs();
       return this;
-    },
-    events: {
-      'click .back': window.history.back
-    }
-  });
+    };
 
-  GenericView = Backbone.View.extend({
-    el: $('#main'),
-    initialize: function() {
+    ToiletView.prototype.back_to_list = function(e) {
+      e.preventDefault();
+      window.history.back();
+      return false;
+    };
+
+    ToiletView.prototype.events = {
+      'click .back': 'back_to_list'
+    };
+
+    return ToiletView;
+
+  })(BaseView);
+
+  GenericView = (function(_super) {
+
+    __extends(GenericView, _super);
+
+    function GenericView() {
+      return GenericView.__super__.constructor.apply(this, arguments);
+    }
+
+    GenericView.prototype.el = $('#main');
+
+    GenericView.prototype.initialize = function() {
       this.template = Handlebars.getTemplate(this.options.template);
       return this.render();
-    },
-    render: function() {
+    };
+
+    GenericView.prototype.render = function() {
       this.$el.html(this.template());
       this.wireup_navs();
       return this;
-    }
-  });
+    };
 
-  About = Backbone.Model.extend({
-    defaults: {
-      data: {}
-    }
-  });
+    return GenericView;
 
-  AboutView = Backbone.View.extend({
-    el: $('#main'),
-    os: null,
-    initialize: function() {
-      this.model = new About;
+  })(BaseView);
+
+  AboutView = (function(_super) {
+
+    __extends(AboutView, _super);
+
+    function AboutView() {
+      return AboutView.__super__.constructor.apply(this, arguments);
+    }
+
+    AboutView.prototype.el = $('#main');
+
+    AboutView.prototype.os = null;
+
+    AboutView.prototype.initialize = function() {
       this.template = Handlebars.getTemplate("about");
       this.os = this.detect(navigator.userAgent);
       alert(this.os);
       return this.render();
-    },
-    detect: function(ua) {
+    };
+
+    AboutView.prototype.detect = function(ua) {
       if (ua.match(/(Android)\s+([\d.]+)/)) {
         return 'android';
       } else {
         return 'ios';
       }
-    },
-    render: function() {
+    };
+
+    AboutView.prototype.render = function() {
       this.$el.html(this.template(this.model.toJSON().data));
       return this;
-    }
-  });
+    };
 
-  App = Backbone.Router.extend({
-    el: $('#main'),
-    states: null,
-    current_view: null,
-    initialize: function() {},
-    routes: {
-      "index.html": "index",
+    return AboutView;
+
+  })(BaseView);
+
+  App = (function(_super) {
+
+    __extends(App, _super);
+
+    function App() {
+      return App.__super__.constructor.apply(this, arguments);
+    }
+
+    App.prototype.el = $('#main');
+
+    App.prototype.states = null;
+
+    App.prototype.current_view = null;
+
+    App.prototype.initialize = function() {};
+
+    App.prototype.routes = {
+      "": "index",
       "map": "map",
       "list": "list",
       "toilet/:id": "toilet",
       "about": "about",
       ":page": "generic"
-    },
-    before: function() {
+    };
+
+    App.prototype.before = function() {
       if (this.current_view != null) {
         return this.current_view.remove();
       }
-    },
-    position_required: function() {
+    };
+
+    App.prototype.position_required = function() {
       if (!position) {
         app.navigate('', true);
         return false;
       }
       return true;
-    },
-    index: function() {
+    };
+
+    App.prototype.index = function() {
       this.before();
       return this.current_view = new HomeView;
-    },
-    list: function() {
+    };
+
+    App.prototype.list = function() {
       this.before();
       if (this.position_required()) {
         return this.current_view = new ListView;
       }
-    },
-    map: function() {
+    };
+
+    App.prototype.map = function() {
       this.before();
       if (this.position_required()) {
         return this.current_view = new MapView;
       }
-    },
-    toilet: function(toilet_id) {
+    };
+
+    App.prototype.toilet = function(toilet_id) {
       this.before();
       return this.current_view = new ToiletView({
         toilet_id: toilet_id
       });
-    },
-    about: function() {
+    };
+
+    App.prototype.about = function() {
       this.before();
       return this.current_view = new AboutView;
-    },
-    generic: function(page) {
+    };
+
+    App.prototype.generic = function(page) {
       this.before();
       return this.current_view = new GenericView({
         template: page
       });
-    }
-  });
+    };
+
+    return App;
+
+  })(Backbone.Router);
 
   protect_links = function() {
     var i, link, _i, _len, _ref, _results;
@@ -369,7 +538,7 @@
 
   Backbone.history.start({
     pushState: true,
-    root: root_url
+    root: window.root_url
   });
 
   protect_links();
